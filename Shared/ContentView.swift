@@ -1,18 +1,36 @@
 import CoreImage
 import SwiftUI
+import UniformTypeIdentifiers
 
 #if os(macOS)
+typealias PlatformImage = NSImage
 import AppKit
+extension PlatformImage {
+  convenience init(cgImage: CGImage) {
+    self.init(cgImage: cgImage, size: .init(width: cgImage.width, height: cgImage.height))
+  }
+}
+extension PlatformImage: NSItemProviderWriting {
+  public static var writableTypeIdentifiersForItemProvider: [String] {
+    [UTType.tiff.identifier]
+  }
+
+  public func loadData(withTypeIdentifier typeIdentifier: String, forItemProviderCompletionHandler completionHandler: @escaping (Data?, Error?) -> Void) -> Progress? {
+    completionHandler(tiffRepresentation, nil)
+    return nil
+  }
+}
 extension Image {
   init(cgImage: CGImage) {
-    self = Image(nsImage: NSImage(cgImage: cgImage, size: .init(width: cgImage.width, height: cgImage.height)))
+    self = Image(nsImage: PlatformImage(cgImage: cgImage))
   }
 }
 #elseif os(iOS)
+typealias PlatformImage = UIImage
 import UIKit
 extension Image {
   init(cgImage: CGImage) {
-    self = Image(uiImage: UIImage(cgImage: cgImage))
+    self = Image(uiImage: PlatformImage(cgImage: cgImage))
   }
 }
 #endif
@@ -41,6 +59,9 @@ struct ContentView: View {
           .interpolation(.none)
           .resizable()
           .aspectRatio(1, contentMode: .fit)
+          .onDrag({
+            NSItemProvider(object: PlatformImage(cgImage: image))
+          })
       } else {
         Text("Failed to make code")
       }
